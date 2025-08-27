@@ -1,0 +1,6 @@
+/home/administrator/st/LAB_1/CMakeFiles/LAB_1.dir
+/home/administrator/st/LAB_1/CMakeFiles/edit_cache.dir
+/home/administrator/st/LAB_1/CMakeFiles/rebuild_cache.dir
+/home/administrator/st/LAB_1/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir
+/home/administrator/st/LAB_1/cmake/stm32cubemx/CMakeFiles/edit_cache.dir
+/home/administrator/st/LAB_1/cmake/stm32cubemx/CMakeFiles/rebuild_cache.dir
