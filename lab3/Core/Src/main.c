@@ -103,13 +103,16 @@ void displayNumber(uint8_t num) {
 
 // uint8_t studentID[] = {0,9,3,2,0};
 // uint8_t idLength = 5;
-
 // uint8_t currentIndex = 0;   // Track which digit to show
 // bool buttonPressed = false;
-// void displayNumber(uint8_t num); 
+// void displayNumber(uint8_t num); // TASK2
+ 
 // int counter = 0;            // The value shown on the display (0-9)
 // bool userPressed = false;   // debounce flag for PA0
-// bool extPressed  = false;   // debounce flag for PB5
+// bool extPressed  = false;  // debounce flag for PB5
+// void displayNumber(uint8_t num);//TASK 3
+
+//TASK4;
 bool userPressed = false;
 void displayNumber(uint8_t num); // From your earlier code
 int main(void)
@@ -145,7 +148,11 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-//   while (1) {
+//   while (1) {uint8_t studentID[] = {0,9,3,2,0};
+// uint8_t idLength = 5;
+// uint8_t currentIndex = 0;   // Track which digit to show
+// bool buttonPressed = false;
+// void displayNumber(uint8_t num);
 //     for (uint8_t i = 0; i < 16; i++) {
 //         displayNumber(i);
 //         HAL_Delay(2000);   // 2 seconds
@@ -241,7 +248,7 @@ while (1)
         }
 
         HAL_Delay(50); // debounce delay
-    }
+    }//TASK4
 
   /* USER CODE END 3 */
 }
