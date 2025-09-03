@@ -83,10 +83,51 @@ void myPrintf(const char *fmt, ...) {
     vsnprintf(buffer, sizeof(buffer), fmt, args);
     va_end(args);
     HAL_UART_Transmit(&huart2, (uint8_t*)buffer, strlen(buffer), HAL_MAX_DELAY);
-}
+}//TaSK1
 
 int main(void){
+  // int a = 2, b = 3;
+  // int LHS, RHS;
+  // LHS = (a + b) * (a + b);
+  // RHS = (a * a) + (b * b) + (2 * a * b);//task2
+
+
 /* USER CODE BEGIN WHILE */
+//    char str[] = "Microcontrollers";   // Original string
+//     int key = 8919;                   // Example key
+//     int shift = key % 256;            // Restrict within ASCII range
+
+//     char encrypted[100];
+//     char decrypted[100];
+//     int i;//task3
+
+    // while (1)   // Outer infinite loop
+    // {
+    //     // Encrypt
+    //     i = 0;
+    //     while (str[i] != '\0')
+    //     {
+    //         encrypted[i] = str[i] + shift;
+    //         i++;
+    //     }
+    //     encrypted[i] = '\0';   // null terminate
+
+    //     // Decrypt
+    //     i = 0;
+    //     while (encrypted[i] != '\0')
+    //     {
+    //         decrypted[i] = encrypted[i] - shift;
+    //         i++;
+    //     }
+    //     decrypted[i] = '\0';   // null terminate
+
+    //     // Print results
+    //     myPrintf("Original: %s\r\n", str);
+    //     myPrintf("Encrypted: %s\r\n", encrypted);
+    //     myPrintf("Decrypted: %s\r\n", decrypted);
+
+    //     HAL_Delay(2000);   // delay before repeating
+    // } //TASK 3
 // while (1)
 // {
 //     // (a) Declare two 2x2 matrices
@@ -123,44 +164,12 @@ int main(void){
     
 
 //     HAL_Delay(1000);  // Delay 3 seconds before next print
-//   }
+//   }// TASK4
+
+
 /* USER CODE END WHILE */
 
-//    char str[] = "Microcontrollers";   // Original string
-//     int key = 8919;                   // Example key
-//     int shift = key % 256;            // Restrict within ASCII range
 
-//     char encrypted[100];
-//     char decrypted[100];
-//     int i;//task3
-
-    // while (1)   // Outer infinite loop
-    // {
-    //     // Encrypt
-    //     i = 0;
-    //     while (str[i] != '\0')
-    //     {
-    //         encrypted[i] = str[i] + shift;
-    //         i++;
-    //     }
-    //     encrypted[i] = '\0';   // null terminate
-
-    //     // Decrypt
-    //     i = 0;
-    //     while (encrypted[i] != '\0')
-    //     {
-    //         decrypted[i] = encrypted[i] - shift;
-    //         i++;
-    //     }
-    //     decrypted[i] = '\0';   // null terminate
-
-    //     // Print results
-    //     myPrintf("Original: %s\r\n", str);
-    //     myPrintf("Encrypted: %s\r\n", encrypted);
-    //     myPrintf("Decrypted: %s\r\n", decrypted);
-
-    //     HAL_Delay(2000);   // delay before repeating
-    // }
     
 
   /* USER CODE BEGIN 1 */
@@ -210,17 +219,14 @@ int main(void){
         }
 
         HAL_Delay(5000);   // wait 5s before printing again
-    }
+    }//TASK5
   
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
   // char message[]="Hello World!";//part of task0
   
-  // int a = 2, b = 3;
-  // int LHS, RHS;
-  // LHS = (a + b) * (a + b);
-  // RHS = (a * a) + (b * b) + (2 * a * b);//task2
+  
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 //   while (1)
