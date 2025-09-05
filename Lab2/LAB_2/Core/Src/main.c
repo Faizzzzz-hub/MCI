@@ -86,85 +86,9 @@ void myPrintf(const char *fmt, ...) {
 }//TaSK1
 
 int main(void){
-  // int a = 2, b = 3;
-  // int LHS, RHS;
-  // LHS = (a + b) * (a + b);
-  // RHS = (a * a) + (b * b) + (2 * a * b);//task2
+  
 
 
-/* USER CODE BEGIN WHILE */
-//    char str[] = "Microcontrollers";   // Original string
-//     int key = 8919;                   // Example key
-//     int shift = key % 256;            // Restrict within ASCII range
-
-//     char encrypted[100];
-//     char decrypted[100];
-//     int i;//task3
-
-    // while (1)   // Outer infinite loop
-    // {
-    //     // Encrypt
-    //     i = 0;
-    //     while (str[i] != '\0')
-    //     {
-    //         encrypted[i] = str[i] + shift;
-    //         i++;
-    //     }
-    //     encrypted[i] = '\0';   // null terminate
-
-    //     // Decrypt
-    //     i = 0;
-    //     while (encrypted[i] != '\0')
-    //     {
-    //         decrypted[i] = encrypted[i] - shift;
-    //         i++;
-    //     }
-    //     decrypted[i] = '\0';   // null terminate
-
-    //     // Print results
-    //     myPrintf("Original: %s\r\n", str);
-    //     myPrintf("Encrypted: %s\r\n", encrypted);
-    //     myPrintf("Decrypted: %s\r\n", decrypted);
-
-    //     HAL_Delay(2000);   // delay before repeating
-    // } //TASK 3
-// while (1)
-// {
-//     // (a) Declare two 2x2 matrices
-//     int A[2][2] = { {1, 2}, {3, 4} };
-//     int B[2][2] = { {5, 6}, {7, 8} };
-//     int C[2][2] = {0};  // Result matrix initialized to 0
-
-//     // (b) Multiply A and B using nested loops
-//     for (int i = 0; i < 2; i++) {
-//         for (int j = 0; j < 2; j++) {
-//             C[i][j] = 0;
-//             for (int k = 0; k < 2; k++) {
-//                 C[i][j] += A[i][k] * B[k][j];
-//             }
-//         }
-//     }
-
-//     // (c) Print matrices A, B, and C
-//     myPrintf("Matrix A:\r\n");
-//     for (int i = 0; i < 2; i++) {
-//         myPrintf("%d %d\r\n", A[i][0], A[i][1]);
-//     }
-
-//     myPrintf("Matrix B:\r\n");
-//     for (int i = 0; i < 2; i++) {
-//         myPrintf("%d %d\r\n", B[i][0], B[i][1]);
-//     }
-
-//     myPrintf("Matrix C (Result):\r\n");
-//     for (int i = 0; i < 2; i++) {
-//         myPrintf("%d %d\r\n", C[i][0], C[i][1]);
-//     }
-
-    
-
-//     HAL_Delay(1000);  // Delay 3 seconds before next print
-//   }// TASK4
 
 
 /* USER CODE END WHILE */
@@ -198,28 +122,7 @@ int main(void){
   MX_SPI1_Init();
   MX_USART2_UART_Init();
   MX_USB_PCD_Init();
-  while (1)   // keep MCU alive
-    {
-        int num, hundreds, tens, units, sum;
-
-        myPrintf("Armstrong numbers between 100 and 999:\r\n");
-
-        for(num = 100; num <= 999; num++) {
-            hundreds = num / 100;
-            tens = (num / 10) % 10;
-            units = num % 10;
-
-            sum = hundreds*hundreds*hundreds +
-                  tens*tens*tens +
-                  units*units*units;
-
-            if(sum == num) {
-                myPrintf("%d\r\n", num);
-            }
-        }
-
-        HAL_Delay(5000);   // wait 5s before printing again
-    }//TASK5
+  
   
   /* USER CODE BEGIN 2 */
 
@@ -227,7 +130,75 @@ int main(void){
   // char message[]="Hello World!";//part of task0
   
   
-  /* Infinite loop */
+ 
+//TASK1
+int x = 42;
+    float y = 3.14;
+    while(1){
+     myPrintf("Value of x = %d, y = %.2f\r\n", x, y);
+    HAL_Delay(1000);    }
+
+//TASK2
+
+// int a = 2, b = 3;
+//   int LHS, RHS;
+//   LHS = (a + b) * (a + b);
+//   RHS = (a * a) + (b * b) + (2 * a * b);//task2
+
+//     // Compute LHS and RHS
+    
+//     while(1){
+//     // Display results in required format
+//     myPrintf("a = %d, b = %d\r\n", a, b);
+//     myPrintf("LHS: %d\r\n", LHS);
+//     myPrintf("RHS: %d\r\n", RHS);
+
+//     if (LHS == RHS) {
+//         myPrintf("Identity Verified: Yes\r\n");
+//     } else {
+//         myPrintf("Identity Verified: No\r\n");
+//     }
+
+//     HAL_Delay(2000);  // <--- add this (1 second delay)
+// }
+
+//TASK 3
+/* USER CODE BEGIN WHILE */
+//    char str[] = "Microcontrollers";   // Original string
+//     int key = 8919;                   // Example key
+//     int shift = key % 256;            // Restrict within ASCII range
+
+//     char encrypted[100];
+//     char decrypted[100];
+//     int i;
+//   while (1)
+// {i = 0;
+//         while (str[i] != '\0')
+//         {
+//             encrypted[i] = str[i] + shift;
+//             i++;
+//         }
+//         encrypted[i] = '\0';   // null terminate
+
+//         // Decrypt
+//         i = 0;
+//         while (encrypted[i] != '\0')
+//         {
+//             decrypted[i] = encrypted[i] - shift;
+//             i++;
+//         }
+//         decrypted[i] = '\0';   // null terminate
+
+//         // Print results
+//         myPrintf("Original: %s\r\n", str);
+//         myPrintf("Encrypted: %s\r\n", encrypted);
+//         myPrintf("Decrypted: %s\r\n", decrypted);
+
+//         HAL_Delay(1000);}
+
+
+//TASK 4
+ /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 //   while (1)
 // {
@@ -265,50 +236,31 @@ int main(void){
     
 
 //     HAL_Delay(1000);  // Delay 3 seconds before next print
-//   }//task 4
+//   }
 
-//   while (1)
-// {i = 0;
-//         while (str[i] != '\0')
-//         {
-//             encrypted[i] = str[i] + shift;
-//             i++;
+//TASK 5
+// while (1)   // keep MCU alive
+//     {
+//         int num, hundreds, tens, units, sum;
+
+//         myPrintf("Armstrong numbers between 100 and 999:\r\n");
+
+//         for(num = 100; num <= 999; num++) {
+//             hundreds = num / 100;
+//             tens = (num / 10) % 10;
+//             units = num % 10;
+
+//             sum = hundreds*hundreds*hundreds +
+//                   tens*tens*tens +
+//                   units*units*units;
+
+//             if(sum == num) {
+//                 myPrintf("%d\r\n", num);
+//             }
 //         }
-//         encrypted[i] = '\0';   // null terminate
 
-//         // Decrypt
-//         i = 0;
-//         while (encrypted[i] != '\0')
-//         {
-//             decrypted[i] = encrypted[i] - shift;
-//             i++;
-//         }
-//         decrypted[i] = '\0';   // null terminate
-
-//         // Print results
-//         myPrintf("Original: %s\r\n", str);
-//         myPrintf("Encrypted: %s\r\n", encrypted);
-//         myPrintf("Decrypted: %s\r\n", decrypted);
-
-//         HAL_Delay(1000);}//task3
-    
-
-// //     // Compute LHS and RHS
-    
-    
-// //     // Display results in required format
-// //     myPrintf("a = %d, b = %d\r\n", a, b);
-// //     myPrintf("LHS: %d\r\n", LHS);
-// //     myPrintf("RHS: %d\r\n", RHS);
-
-// //     if (LHS == RHS) {
-// //         myPrintf("Identity Verified: Yes\r\n");
-// //     } else {
-// //         myPrintf("Identity Verified: No\r\n");
-// //     }
-
-// //     HAL_Delay(2000);  // <--- add this (1 second delay)
-// // }task2
+//         HAL_Delay(5000);   // wait 5s before printing again
+//     }
 
 
 //     /* USER CODE BEGIN 3 */
