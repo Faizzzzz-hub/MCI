@@ -78,9 +78,6 @@ void delay_ms(uint32_t ms)
 }
 /* USER CODE END 0 */
 
-
-
-
 /**
   * @brief  The application entry point.
   * @retval int
@@ -122,11 +119,6 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
-    {
-    HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_10);
-   // Toggle LED (PA5 on Nucleo boards)
-    delay_ms(1000);                          // 1 second delay
- }
 
     /* USER CODE BEGIN 3 */
   }
