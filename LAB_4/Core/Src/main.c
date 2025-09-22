@@ -18,6 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <stdio.h>
+
+
+UART_HandleTypeDef huart2;
+
+// #include "usb_device.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -43,8 +49,13 @@
 I2C_HandleTypeDef hi2c1;
 
 TIM_HandleTypeDef htim2;
+TIM_HandleTypeDef htim3;
 
 PCD_HandleTypeDef hpcd_USB_FS;
+/* USER CODE BEGIN PV */
+
+/* USER CODE END PV */
+
 
 /* USER CODE BEGIN PV */
 
@@ -56,7 +67,23 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USB_PCD_Init(void);
+static void MX_TIM3_Init(void);
 /* USER CODE BEGIN PFP */
+static void MX_USART2_UART_Init(void)
+{
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+}
 
 /* USER CODE END PFP */
 
@@ -80,9 +107,18 @@ void delay_ms(uint32_t ms)
 
 
 
-uint32_t countA = 0;
-uint32_t countB = 0;                                 //TASK 3
-uint32_t countC = 0;
+// uint32_t countA = 0;
+// uint32_t countB = 0;                                 //TASK 3
+// uint32_t countC = 0;
+
+
+
+
+
+
+
+
+
 
 /* USER CODE END 0 */
 
@@ -90,6 +126,31 @@ uint32_t countC = 0;
   * @brief  The application entry point.
   * @retval int
   */
+volatile uint32_t last_capture = 0;
+volatile uint32_t period = 0;
+volatile float frequency = 0;
+
+
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim){
+  if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+  {
+    uint32_t current_capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+
+    if (current_capture >= last_capture)
+      period = current_capture - last_capture;
+    else
+      period = (0xFFFF - last_capture + current_capture + 1);
+
+    last_capture = current_capture;
+
+    // Timer tick = 1 MHz → 1 µs
+    // float timer_clock = 48000000.0f; // 48 MHz
+    frequency = 1000000 / period;
+
+    // Print results
+    // printf("Period: %lu us | Frequency: %.2f Hz\r\n", period, frequency);
+  }
+}
 int main(void)
 {
 
@@ -118,7 +179,13 @@ int main(void)
   MX_I2C1_Init();
   MX_TIM2_Init();
   MX_USB_PCD_Init();
+  MX_USART2_UART_Init();
+  MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  /* USER CODE BEGIN 2 */
+HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);   // Start TIM3 Input Capture on CH1
+/* USER CODE END 2 */
+
 
 
 /* USER CODE BEGIN 2 */
@@ -131,60 +198,58 @@ int main(void)
   
 
 
-HAL_TIM_Base_Start_IT(&htim2);    // TASK 3
+// HAL_TIM_Base_Start_IT(&htim2);    // TASK 3
 
 
-
+// HAL_TIM_IC_Start_IT(&htim3, TIM_CHANNEL_1);  //task4
 
   while (1)
-  {
+  {printf("Latest: Period=%lu us | Frequency=%.2f Hz\r\n", period, frequency);
+    HAL_Delay(500); 
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
+// void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)                   //WHOLE TASK 3
+// {
+//     if (htim->Instance == TIM2)
+//     {
+//         // Increment counters every 1 ms
+//         countA++;
+//         countB++;
+//         countC++;
 
+//         // LED A: 500 ms toggle (1 Hz square wave)
+//         if (countA >= 500)
+//         {
+//             HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_10); // LED A
+//             countA = 0;
+//         }
 
+//         // LED B: 200 ms toggle (2.5 Hz square wave)
+//         if (countB >= 200)
+//         {
+//             HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_11); // LED B
+//             countB = 0;
+//         }
 
-
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)                   //WHOLE TASK 3
-{
-    if (htim->Instance == TIM2)
-    {
-        // Increment counters every 1 ms
-        countA++;
-        countB++;
-        countC++;
-
-        // LED A: 500 ms toggle (1 Hz square wave)
-        if (countA >= 500)
-        {
-            HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_10); // LED A
-            countA = 0;
-        }
-
-        // LED B: 200 ms toggle (2.5 Hz square wave)
-        if (countB >= 200)
-        {
-            HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_11); // LED B
-            countB = 0;
-        }
-
-        // LED C: 100 ms toggle (5 Hz square wave)
-        if (countC >= 100)
-        {
-            HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_12); // LED C
-            countC = 0;
-        }
-    }
-}
+//         // LED C: 100 ms toggle (5 Hz square wave)
+//         if (countC >= 100)
+//         {
+//             HAL_GPIO_TogglePin(GPIOE, GPIO_PIN_12); // LED C
+//             countC = 0;
+//         }
+//     }
+// }
 
 
 /**
   * @brief System Clock Configuration
   * @retval None
   */
+
 void SystemClock_Config(void)
 {
   RCC_OscInitTypeDef RCC_OscInitStruct = {0};
@@ -298,7 +363,7 @@ static void MX_TIM2_Init(void)
   htim2.Instance = TIM2;
   htim2.Init.Prescaler = 47999;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 1;
+  htim2.Init.Period = 999 ;//4294967295;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -319,6 +384,54 @@ static void MX_TIM2_Init(void)
   /* USER CODE BEGIN TIM2_Init 2 */
 
   /* USER CODE END TIM2_Init 2 */
+
+}
+
+/**
+  * @brief TIM3 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_TIM3_Init(void)
+{
+
+  /* USER CODE BEGIN TIM3_Init 0 */
+
+  /* USER CODE END TIM3_Init 0 */
+
+  TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
+
+  /* USER CODE BEGIN TIM3_Init 1 */
+
+  /* USER CODE END TIM3_Init 1 */
+  htim3.Instance = TIM3;
+  htim3.Init.Prescaler = 47;
+  htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
+  htim3.Init.Period = 65535;
+  htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
+  htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+  if (HAL_TIM_IC_Init(&htim3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
+  if (HAL_TIMEx_MasterConfigSynchronization(&htim3, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim3, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN TIM3_Init 2 */
+
+  /* USER CODE END TIM3_Init 2 */
 
 }
 
@@ -373,8 +486,8 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin|LD4_Pin|LD3_Pin|LD5_Pin
-                          |LD7_Pin|LD9_Pin|LD10_Pin|LD8_Pin
+  HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin|LD4_Pin|LD3_Pin|GPIO_PIN_10
+                          |GPIO_PIN_11|GPIO_PIN_12|LD10_Pin|LD8_Pin
                           |LD6_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
@@ -388,11 +501,11 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : CS_I2C_SPI_Pin LD4_Pin LD3_Pin LD5_Pin
-                           LD7_Pin LD9_Pin LD10_Pin LD8_Pin
+  /*Configure GPIO pins : CS_I2C_SPI_Pin LD4_Pin LD3_Pin PE10
+                           PE11 PE12 LD10_Pin LD8_Pin
                            LD6_Pin */
-  GPIO_InitStruct.Pin = CS_I2C_SPI_Pin|LD4_Pin|LD3_Pin|LD5_Pin
-                          |LD7_Pin|LD9_Pin|LD10_Pin|LD8_Pin
+  GPIO_InitStruct.Pin = CS_I2C_SPI_Pin|LD4_Pin|LD3_Pin|GPIO_PIN_10
+                          |GPIO_PIN_11|GPIO_PIN_12|LD10_Pin|LD8_Pin
                           |LD6_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -426,6 +539,23 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+
+/* USER CODE BEGIN 4 */
+int __io_putchar(int ch)
+{
+    HAL_UART_Transmit(&huart2, (uint8_t *)&ch, 1, HAL_MAX_DELAY);
+    return ch;
+}
+/* USER CODE END 4 */
+
+/* USER CODE BEGIN 4 */
+
+/* USER CODE END 4 */
+
+
+
+
+
 
 
 
@@ -472,4 +602,11 @@ void assert_failed(uint8_t *file, uint32_t line)
      ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
   /* USER CODE END 6 */
 }
+
+
+
+
+
+
+
 #endif /* USE_FULL_ASSERT */
