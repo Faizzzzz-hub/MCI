@@ -1,0 +1,6 @@
+/home/administrator/st/MCI/LAB_4/CMakeFiles/LAB_4.dir
+/home/administrator/st/MCI/LAB_4/CMakeFiles/edit_cache.dir
+/home/administrator/st/MCI/LAB_4/CMakeFiles/rebuild_cache.dir
+/home/administrator/st/MCI/LAB_4/cmake/stm32cubemx/CMakeFiles/STM32_Drivers.dir
+/home/administrator/st/MCI/LAB_4/cmake/stm32cubemx/CMakeFiles/edit_cache.dir
+/home/administrator/st/MCI/LAB_4/cmake/stm32cubemx/CMakeFiles/rebuild_cache.dir
