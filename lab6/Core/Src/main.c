@@ -18,15 +18,12 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <stdbool.h>
+#include <stdio.h>
 
-#include <stdio.h> 
-#include <string.h>
-#define SAMPLE_SIZE 10 // or 16, etc. 
-uint32_t periodArray[SAMPLE_SIZE]; 
-uint8_t sampleIndex = 0; 
-uint8_t captureCount = 0; 
-uint8_t printFlag = 0; 
-uint32_t prevCapture = 0;
+TIM_HandleTypeDef htim2;
+// UART_HandleTypeDef huart1;
+
 
 
 /* Private includes ----------------------------------------------------------*/
@@ -54,13 +51,14 @@ I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi1;
 
-TIM_HandleTypeDef htim2;
+// TIM_HandleTypeDef htim2;
 
 UART_HandleTypeDef huart1;
-
-// PCD_HandleTypeDef hpcd_USB_FS;
-extern PCD_HandleTypeDef hpcd_USB_FS;
-
+volatile uint32_t ic_val1 = 0;
+volatile uint32_t ic_val2 = 0;
+volatile uint8_t  is_first_capture = 1;
+volatile uint32_t period = 0;
+volatile uint8_t  capture_done = 0;
 
 /* USER CODE BEGIN PV */
 
@@ -72,7 +70,6 @@ static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_USB_PCD_Init(void);
 static void MX_USART1_UART_Init(void);
 /* USER CODE BEGIN PFP */
 
@@ -89,110 +86,27 @@ static void MX_USART1_UART_Init(void);
   */
 int main(void)
 {
+    HAL_Init();
+    SystemClock_Config();
+    MX_GPIO_Init();
+    MX_USART1_UART_Init();
+    MX_TIM2_Init();
 
-  /* USER CODE BEGIN 1 */
+    HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
 
-  /* USER CODE END 1 */
-
-  /* MCU Configuration--------------------------------------------------------*/
-
-  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
-  HAL_Init();
-
-  /* USER CODE BEGIN Init */
-
-  /* USER CODE END Init */
-
-  /* Configure the system clock */
-  SystemClock_Config();
-
-  /* USER CODE BEGIN SysInit */
-
-  /* USER CODE END SysInit */
-
-  /* Initialize all configured peripherals */
-  MX_GPIO_Init();
-  MX_I2C1_Init();
-  MX_SPI1_Init();
-  MX_TIM2_Init();
-  MX_USB_PCD_Init();
-  MX_USART1_UART_Init();
-  /* USER CODE BEGIN 2 */
-
-  /* USER CODE END 2 */
-
-  /* Infinite loop */
-  /* USER CODE BEGIN WHILE */
-  while (1)
-  {
-    /* USER CODE END WHILE */
-    /* USER CODE END WHILE */
-      HAL_Delay(100); // check every 100 ms
-
-      if(printFlag)
-      {
-      uint64_t sum = 0;
-      for(uint8_t i = 0; i < SAMPLE_SIZE; i++)
-      {
-      sum += periodArray[i];
-      }
-
-      uint32_t avgPeriod = sum / SAMPLE_SIZE;
-
-      // Frequency formula:
-      // f = 8e6 / (2 × avgPeriod)
-      double freq = (8000000.0) / (2.0 * avgPeriod);
-
-      // Apply small correction factor if needed (error margin)
-      double finalFreq = freq * 1.01; // Example: +1% correction
-      double expectedfreq = 48000000/(10*(avgPeriod+1));
-      char msg[200]; // larger buffer
-int len = snprintf(msg, sizeof(msg),
-                   "Measured Frequency: %.2f Hz\r\nExpected Frequency: %.2f Hz\r\n",
-                   finalFreq, 48000000.0/(10*(avgPeriod+1)));
-HAL_UART_Transmit(&huart1, (uint8_t*)msg, len, HAL_MAX_DELAY);
-
-
-
-
-      
-      printFlag = 0; // reset flag
-      }
-      /* USER CODE BEGIN 3 */
-      }
-/* USER CODE END 3 */
-}
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
-{
-  if(GPIO_Pin == GPIO_PIN_0) // PD0 → EXTI0
-  {
-    
-    if(captureCount == 0)
+    while (1)
     {
-      // First edge: start timer
-      __HAL_TIM_SET_COUNTER(&htim2, 0);
-      HAL_TIM_Base_Start(&htim2);
-      prevCapture = __HAL_TIM_GET_COUNTER(&htim2);
-      captureCount = 1;
-      printf("Interrupt fired!\r\n"); 
-    }
-    else
-    {
-    // Subsequent edges: measure period
-      uint32_t currentCapture = __HAL_TIM_GET_COUNTER(&htim2);
-      uint32_t period = currentCapture - prevCapture;
-      prevCapture = currentCapture;
+        if (capture_done)
+        {
+            float freq = 1000000.0f / (float)period; // 1 MHz timer tick → frequency
+            char msg[100];
+            int len = snprintf(msg, sizeof(msg), "Measured Frequency: %.2f Hz\r\n", freq);
+            HAL_UART_Transmit(&huart1, (uint8_t*)msg, len, HAL_MAX_DELAY);
 
-      // Store in array
-      periodArray[sampleIndex++] = period;
-
-      if(sampleIndex >= SAMPLE_SIZE)
-      {
-      sampleIndex = 0;
-      printFlag = 1; // signal main loop to process data
-      }
+            capture_done = 0;
+            HAL_Delay(200);
+        }
     }
-  }
 }
 
 /**
@@ -261,7 +175,7 @@ static void MX_I2C1_Init(void)
 
   /* USER CODE END I2C1_Init 1 */
   hi2c1.Instance = I2C1;
-  hi2c1.Init.Timing = 0x00201D2B;
+  hi2c1.Init.Timing = 0x2000090E;
   hi2c1.Init.OwnAddress1 = 0;
   hi2c1.Init.AddressingMode = I2C_ADDRESSINGMODE_7BIT;
   hi2c1.Init.DualAddressMode = I2C_DUALADDRESS_DISABLE;
@@ -345,30 +259,33 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 9;
+  htim2.Init.Prescaler = 47;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 4294967295;
+  htim2.Init.Period = 0xFFFF;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -414,37 +331,6 @@ static void MX_USART1_UART_Init(void)
 }
 
 /**
-  * @brief USB Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USB_PCD_Init(void)
-{
-
-  /* USER CODE BEGIN USB_Init 0 */
-
-  /* USER CODE END USB_Init 0 */
-
-  /* USER CODE BEGIN USB_Init 1 */
-
-  /* USER CODE END USB_Init 1 */
-  hpcd_USB_FS.Instance = USB;
-  hpcd_USB_FS.Init.dev_endpoints = 8;
-  hpcd_USB_FS.Init.speed = PCD_SPEED_FULL;
-  hpcd_USB_FS.Init.phy_itface = PCD_PHY_EMBEDDED;
-  hpcd_USB_FS.Init.low_power_enable = DISABLE;
-  hpcd_USB_FS.Init.battery_charging_enable = DISABLE;
-  if (HAL_PCD_Init(&hpcd_USB_FS) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USB_Init 2 */
-
-  /* USER CODE END USB_Init 2 */
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -469,6 +355,9 @@ static void MX_GPIO_Init(void)
                           |LD7_Pin|LD9_Pin|LD10_Pin|LD8_Pin
                           |LD6_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_0, GPIO_PIN_RESET);
+
   /*Configure GPIO pins : DRDY_Pin MEMS_INT3_Pin MEMS_INT4_Pin MEMS_INT2_Pin */
   GPIO_InitStruct.Pin = DRDY_Pin|MEMS_INT3_Pin|MEMS_INT4_Pin|MEMS_INT2_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_EVT_RISING;
@@ -485,6 +374,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOE, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PC0 */
+  GPIO_InitStruct.Pin = GPIO_PIN_0;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
   /*Configure GPIO pin : B1_Pin */
   GPIO_InitStruct.Pin = B1_Pin;
@@ -508,6 +404,29 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+    {
+        if (is_first_capture)
+        {
+            ic_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+            is_first_capture = 0;
+        }
+        else
+        {
+            ic_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+
+            if (ic_val2 > ic_val1)
+                period = ic_val2 - ic_val1;
+            else
+                period = (0xFFFFFFFF - ic_val1) + ic_val2;
+
+            is_first_capture = 1;
+            capture_done = 1;
+        }
+    }
+}
 
 /* USER CODE END 4 */
 
