@@ -1,7 +1,9 @@
 *.o
 *.out
 *.exe
-/build/
+/build/*
 *.log
 *.swp
+*.ninja*
+*.json
 
