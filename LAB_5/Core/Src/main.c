@@ -142,6 +142,7 @@ Motor_SetSpeed(500);
     // Clockwise
     Motor_SetDirection(0);   // IN1=1, IN2=0
     Motor_SetSpeed(700);     // ~70% duty cycle
+    
     HAL_Delay(1000);         // run 1 second
 
     // Stop
