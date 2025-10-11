@@ -18,8 +18,14 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-#include "stdio.h"
-#include "string.h"
+#include <stdio.h>
+#include <string.h>
+
+#define CTRL_REG1      0x20
+#define CTRL_REG1_VAL  0x0F  // PD=1, Xen=1, Yen=1, Zen=1 (power on + axes enabled)
+#define OUT_TEMP       0x26
+#define SPI_READ_CMD   0x80
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -42,8 +48,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-uint32_t adc_value;
-char msg[50];
 I2C_HandleTypeDef hi2c1;
 
 SPI_HandleTypeDef hspi1;
@@ -51,7 +55,6 @@ SPI_HandleTypeDef hspi1;
 UART_HandleTypeDef huart1;
 
 PCD_HandleTypeDef hpcd_USB_FS;
-
 
 /* USER CODE BEGIN PV */
 
@@ -64,8 +67,6 @@ static void MX_I2C1_Init(void);
 static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USB_PCD_Init(void);
-#define CS_LOW()   HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET)
-#define CS_HIGH()  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET)
 /* USER CODE BEGIN PFP */
 
 /* USER CODE END PFP */
@@ -74,14 +75,20 @@ static void MX_USB_PCD_Init(void);
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
-uint8_t who_am_i_cmd = 0x8F; // 0x80 | 0x0F for read from WHO_AM_I
-uint8_t who_am_i_val = 0;
-char uart_buf[50];
 
 /**
   * @brief  The application entry point.
   * @retval int
   */
+ volatile uint8_t spi_tx_in_progress = 0;
+uint8_t tx_cmd;
+uint8_t rx_val;
+char uart_buf[64];
+#define CS_LOW()  HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_RESET)
+#define CS_HIGH() HAL_GPIO_WritePin(GPIOE, GPIO_PIN_3, GPIO_PIN_SET)
+void gyro_init(void);
+void start_temp_read_it(void);
+
 int main(void)
 {
 
@@ -111,6 +118,8 @@ int main(void)
   MX_SPI1_Init();
   MX_USART1_UART_Init();
   MX_USB_PCD_Init();
+  gyro_init();
+    HAL_Delay(50);
   /* USER CODE BEGIN 2 */
 
   /* USER CODE END 2 */
@@ -118,26 +127,61 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-{
-    uint8_t cmd = 0x8F;      // 0x80 | 0x0F (read from WHO_AM_I)
-    uint8_t whoami = 0x00;   // to store received value
-
-    CS_LOW();  // Pull chip select LOW
-
-    HAL_SPI_Transmit(&hspi1, &cmd, 1, HAL_MAX_DELAY);
-    HAL_SPI_Receive(&hspi1, &whoami, 1, HAL_MAX_DELAY);
-
-    CS_HIGH(); // Release chip select
-
-    sprintf(uart_buf, "WHO_AM_I = 0x%02X\r\n", whoami);
-    HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, strlen(uart_buf), HAL_MAX_DELAY);
-
-    HAL_Delay(1000);
-}
-
-
-
+  {
+    if (!spi_tx_in_progress) {
+      /* start a single read cycle; will complete in callbacks */
+      start_temp_read_it();
+    }
+    HAL_Delay(100); // request ~10Hz read (100ms); adjust to 100-200 ms as lab asks
+  }
   /* USER CODE END 3 */
+}
+void gyro_init(void)
+{
+  uint8_t tx[2];
+  // write op: bit7 = 0, so just register address
+  tx[0] = CTRL_REG1 & 0x3F; // ensure top bits clear (write)
+  tx[1] = CTRL_REG1_VAL;
+
+  CS_LOW();
+  HAL_SPI_Transmit(&hspi1, tx, 2, HAL_MAX_DELAY); // polling is OK for init
+  CS_HIGH();
+
+  /* small delay to let device power up */
+  HAL_Delay(20);
+}
+void start_temp_read_it(void)
+{
+tx_cmd = (uint8_t)(SPI_READ_CMD | (OUT_TEMP & 0x3F));
+
+  CS_LOW();
+  spi_tx_in_progress = 1;
+  // send command byte, then receive in the TxCplt callback
+  HAL_SPI_Transmit_IT(&hspi1, &tx_cmd, 1);
+}
+void HAL_SPI_TxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+  if (hspi->Instance == SPI1) {
+    /* now request 1 byte receive (device will respond on MISO while we clock) */
+    HAL_SPI_Receive_IT(&hspi1, &rx_val, 1);
+    /* keep CS LOW until RxCplt */
+  }
+}
+void HAL_SPI_RxCpltCallback(SPI_HandleTypeDef *hspi)
+{
+  if (hspi->Instance == SPI1) {
+    CS_HIGH();                  // end transaction
+    spi_tx_in_progress = 0;     // ready for next read
+
+    /* convert to signed 8-bit temperature (OUT_TEMP is 8-bit two's complement) */
+    int8_t temp_signed = (int8_t)rx_val;
+
+    /* send over UART1 as readable text */
+   int n = snprintf(uart_buf, sizeof(uart_buf),
+                 "%d\r\n", (int)temp_signed);
+
+    HAL_UART_Transmit(&huart1, (uint8_t*)uart_buf, n, HAL_MAX_DELAY);
+  }
 }
 
 /**
