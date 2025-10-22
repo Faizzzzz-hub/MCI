@@ -54,6 +54,25 @@ UART_HandleTypeDef huart1;
 PCD_HandleTypeDef hpcd_USB_FS;
 
 /* USER CODE BEGIN PV */
+/* USER CODE BEGIN PV */
+uint32_t ic_val1 = 0;
+uint32_t ic_val2 = 0;
+uint32_t diff = 0;
+uint8_t is_first_captured = 0;
+float frequency = 0.0;
+char msg[50];
+TIM_HandleTypeDef htim2;
+UART_HandleTypeDef huart1;
+
+/* USER CODE BEGIN PV */
+// uint32_t ic_val1 = 0;
+// uint32_t ic_val2 = 0;
+// uint32_t diff = 0;
+// uint8_t is_first_captured = 0;
+// float frequency = 0.0;
+char msg[50];
+/* USER CODE END PV */
+
 
 /* USER CODE END PV */
 
@@ -111,8 +130,8 @@ int main(void)
   MX_USART1_UART_Init();
   MX_USB_PCD_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);   // Start PWM on PC6
-HAL_TIM_Base_Start(&htim2);                 // Start TIM2 for input capture
+   HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);    // Start PWM on PC6
+// HAL_TIM_Base_Start(&htim2);                 // Start TIM2 for input capture
 
 uint32_t t1 = 0, t2 = 0, period = 0;
 float freq = 0.0, rpm = 0.0;
@@ -130,28 +149,10 @@ __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 600);
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
   while (1)
-  {while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
-  while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET);
-    t1 = __HAL_TIM_GET_COUNTER(&htim2);
-
-    // Wait for next rising edge
-    while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
-    while (HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET);
-    t2 = __HAL_TIM_GET_COUNTER(&htim2);
-
-    if (t2 > t1)
-        period = t2 - t1;
-    else
-        period = (0xFFFF - t1) + t2; // handle timer overflow
-
-    freq = 1000000.0 / period;       // since timer counts in µs → 1 MHz
-    rpm = (freq * 60.0) / 20.0;      // assuming 20 pulses per revolution
-
-    printf("Period: %lu us, Freq: %.2f Hz, RPM: %.2f\r\n", period, freq, rpm);
+  {
+    sprintf(msg, "Frequency = %.2f Hz\r\n", frequency);
+    HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
     HAL_Delay(500);
-    /* USER CODE END WHILE */
-
-    /* USER CODE BEGIN 3 */
   }
   /* USER CODE END 3 */
 }
@@ -313,7 +314,7 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 71;
+  htim2.Init.Prescaler = 47;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 0xFFFF;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -361,7 +362,7 @@ static void MX_TIM3_Init(void)
 
   /* USER CODE END TIM3_Init 1 */
   htim3.Instance = TIM3;
-  htim3.Init.Prescaler = 47;
+  htim3.Init.Prescaler = 71;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim3.Init.Period = 999;
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -523,7 +524,32 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+{
+  if (htim->Instance == TIM2)
+  {
+    if (is_first_captured == 0)
+    {
+      ic_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+      is_first_captured = 1;
+    }
+    else
+    {
+      ic_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
 
+      if (ic_val2 > ic_val1)
+        diff = ic_val2 - ic_val1;
+      else
+        diff = (0xFFFF - ic_val1) + ic_val2; // Handle overflow
+
+      // Timer tick = 1 µs → frequency = 1e6 / period
+      frequency = 1000000.0 / diff;
+
+
+      is_first_captured = 0;
+    }
+  }
+}
 /* USER CODE END 4 */
 
 /**
