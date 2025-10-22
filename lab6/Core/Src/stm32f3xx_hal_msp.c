@@ -218,15 +218,15 @@ void HAL_SPI_MspDeInit(SPI_HandleTypeDef* hspi)
 }
 
 /**
-  * @brief TIM_Base MSP Initialization
+  * @brief TIM_IC MSP Initialization
   * This function configures the hardware resources used in this example
-  * @param htim_base: TIM_Base handle pointer
+  * @param htim_ic: TIM_IC handle pointer
   * @retval None
   */
-void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
+void HAL_TIM_IC_MspInit(TIM_HandleTypeDef* htim_ic)
 {
   GPIO_InitTypeDef GPIO_InitStruct = {0};
-  if(htim_base->Instance==TIM2)
+  if(htim_ic->Instance==TIM2)
   {
     /* USER CODE BEGIN TIM2_MspInit 0 */
 
@@ -236,9 +236,9 @@ void HAL_TIM_Base_MspInit(TIM_HandleTypeDef* htim_base)
 
     __HAL_RCC_GPIOA_CLK_ENABLE();
     /**TIM2 GPIO Configuration
-    PA15     ------> TIM2_CH1
+    PA0     ------> TIM2_CH1
     */
-    GPIO_InitStruct.Pin = GPIO_PIN_15;
+    GPIO_InitStruct.Pin = GPIO_PIN_0;
     GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
     GPIO_InitStruct.Pull = GPIO_NOPULL;
     GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -306,14 +306,14 @@ void HAL_TIM_MspPostInit(TIM_HandleTypeDef* htim)
 
 }
 /**
-  * @brief TIM_Base MSP De-Initialization
+  * @brief TIM_IC MSP De-Initialization
   * This function freeze the hardware resources used in this example
-  * @param htim_base: TIM_Base handle pointer
+  * @param htim_ic: TIM_IC handle pointer
   * @retval None
   */
-void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
+void HAL_TIM_IC_MspDeInit(TIM_HandleTypeDef* htim_ic)
 {
-  if(htim_base->Instance==TIM2)
+  if(htim_ic->Instance==TIM2)
   {
     /* USER CODE BEGIN TIM2_MspDeInit 0 */
 
@@ -322,9 +322,9 @@ void HAL_TIM_Base_MspDeInit(TIM_HandleTypeDef* htim_base)
     __HAL_RCC_TIM2_CLK_DISABLE();
 
     /**TIM2 GPIO Configuration
-    PA15     ------> TIM2_CH1
+    PA0     ------> TIM2_CH1
     */
-    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_15);
+    HAL_GPIO_DeInit(GPIOA, GPIO_PIN_0);
 
     /* TIM2 interrupt DeInit */
     HAL_NVIC_DisableIRQ(TIM2_IRQn);

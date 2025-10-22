@@ -51,6 +51,14 @@ TIM_HandleTypeDef htim3;
 UART_HandleTypeDef huart1;
 
 /* USER CODE BEGIN PV */
+// uint32_t ic_val1 = 0;
+// uint32_t ic_val2 = 0;
+// uint32_t period = 0;
+// uint8_t is_first_capture = 1;
+// uint8_t capture_done = 0;
+uint32_t first_capture = 0, second_capture = 0;
+uint8_t is_first_captured = 0;
+float frequency = 0;
 
 /* USER CODE END PV */
 
@@ -107,6 +115,12 @@ int main(void)
   MX_USB_DEVICE_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
+  HAL_TIM_Base_Start(&htim2);
+  /* USER CODE BEGIN 2 */
+// HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);   // Start TIM2 channel 1 input-capture interrupt
+/* USER CODE END 2 */
+
+
 
   /* USER CODE END 2 */
 
@@ -115,6 +129,12 @@ int main(void)
   while (1)
   {
     /* USER CODE END WHILE */
+    /* USER CODE BEGIN 3 */
+char msg[50];
+sprintf(msg, "Frequency = %.2f Hz\r\n", frequency);
+HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+HAL_Delay(500);
+/* USER CODE END 3 */
 
     /* USER CODE BEGIN 3 */
   }
@@ -271,30 +291,33 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 0 */
 
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 47;
+  htim2.Init.Prescaler = 9;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim2.Init.Period = 0xFFFF;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
+  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
   }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
   {
     Error_Handler();
   }
@@ -440,17 +463,15 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pin : B1_Pin */
-  GPIO_InitStruct.Pin = B1_Pin;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(B1_GPIO_Port, &GPIO_InitStruct);
-
   /*Configure GPIO pin : PD0 */
   GPIO_InitStruct.Pin = GPIO_PIN_0;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Mode = GPIO_MODE_IT_RISING;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /* EXTI interrupt init*/
+  HAL_NVIC_SetPriority(EXTI0_IRQn, 0, 0);
+  HAL_NVIC_EnableIRQ(EXTI0_IRQn);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -458,29 +479,32 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin)
 {
-    if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+  if (GPIO_Pin == GPIO_PIN_0)
+  {
+    if (is_first_captured == 0)
     {
-        if (is_first_capture)
-        {
-            ic_val1 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-            is_first_capture = 0;
-        }
-        else
-        {
-            ic_val2 = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-
-            if (ic_val2 > ic_val1)
-                period = ic_val2 - ic_val1;
-            else
-                period = (0xFFFFFFFF - ic_val1) + ic_val2;
-
-            is_first_capture = 1;
-            capture_done = 1;
-        }
+      first_capture = __HAL_TIM_GET_COUNTER(&htim2);
+      is_first_captured = 1;
     }
+    else
+    {
+      second_capture = __HAL_TIM_GET_COUNTER(&htim2);
+
+      uint32_t diff;
+      if (second_capture > first_capture)
+        diff = second_capture - first_capture;
+      else
+        diff = (0xFFFF - first_capture) + second_capture;
+
+      frequency = 4800000.0f / diff; // 48 MHz / (Prescaler + 1)
+ // 72 MHz / (Prescaler + 1)
+      is_first_captured = 0;
+    }
+  }
 }
+
 
 /* USER CODE END 4 */
 
