@@ -144,8 +144,7 @@ HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1); // TIM2 input capture with interrupt
 
 // Start timer for microsecond measurement
 HAL_TIM_Base_Start(&htim2);
-// uint32_t t1 = 0, t2 = 0, period = 0;
-// float freq = 0.0, rpm = 0.0;
+
 
 // Motor forward
 HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9, GPIO_PIN_SET);    // DIR1
@@ -165,68 +164,17 @@ __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 600);
   //   HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);          //TASK2
   //   HAL_Delay(500);
   // }
-//   while (1)
-// {
-//     // Wait for first falling edge
-//     while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET);
 
-//     // Reset timer
-//     __HAL_TIM_SET_COUNTER(&htim2, 0);
-
-//     // Wait for next falling edge
-//     while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_SET);
-
-//     // Read timer ticks between pulses
-//     ticks = __HAL_TIM_GET_COUNTER(&htim2);
-
-//     // Calculate frequency in Hz (timer tick = 1 µs)
-//     frequency = 1000000.0 / ticks;
-
-//     // Calculate RPM
-//     rpm = (60.0 * frequency) / PPR;
-
-//     // Print RPM over UART
-//     sprintf(msg, "RPM = %.2f\r\n", rpm);
-//     HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-
-//     HAL_Delay(200); // small delay to avoid flooding UART
-// }
 uint32_t t1 = 0, t2 = 0;
 
-// while(1)
-// {
-//     // Wait for rising edge
-//     while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
-//     t1 = __HAL_TIM_GET_COUNTER(&htim2);
 
-//     // Wait for next rising edge
-//     while(HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0) == GPIO_PIN_RESET);
-//     t2 = __HAL_TIM_GET_COUNTER(&htim2);
-
-//     ticks = (t2 >= t1) ? (t2 - t1) : (0xFFFF - t1 + t2);
-
-//     if(ticks != 0)
-//     {
-//         frequency = 1000000.0 / ticks; // 1 tick = 1 us
-//         rpm = (60.0 * frequency) / PPR;
-
-//         sprintf(msg, "RPM = %.2f\r\n", rpm);
-//         HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-//     }
-//     HAL_Delay(100);
-// }
 while(1)
 {
     sprintf(msg, "RPM = %.2f\r\n", rpm);
     HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
     HAL_Delay(200);
 }
-// while (1)
-// {
-//     sprintf(msg, "Diff = %lu\r\n", diff);
-//     HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-//     HAL_Delay(200);
-// }
+
 
 
 
@@ -613,8 +561,6 @@ HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 /* USER CODE BEGIN 4 */
 uint32_t last_capture = 0;
-// float frequency = 0.0;
-// float rpm = 0.0;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
