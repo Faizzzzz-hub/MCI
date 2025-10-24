@@ -68,6 +68,7 @@ uint32_t ticks = 0;
 float frequency = 0.0;
 float rpm = 0.0;
 char msg[50];
+uint32_t diff = 0;
 /* USER CODE BEGIN PV */
 // uint32_t ic_val1 = 0;
 // uint32_t ic_val2 = 0;
@@ -220,6 +221,14 @@ while(1)
     HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
     HAL_Delay(200);
 }
+// while (1)
+// {
+//     sprintf(msg, "Diff = %lu\r\n", diff);
+//     HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+//     HAL_Delay(200);
+// }
+
+
 
 
   /* USER CODE END 3 */
@@ -387,6 +396,13 @@ static void MX_TIM2_Init(void)
   htim2.Init.Period = 0xFFFF;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
+
+
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+sConfigIC.ICFilter = 12;  // <-- currently zero
+
   if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
   {
     Error_Handler();
@@ -602,25 +618,28 @@ uint32_t last_capture = 0;
 
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-    if(htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+    if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
     {
         uint32_t current_capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
         uint32_t diff;
 
-        if(current_capture >= last_capture)
+        if (current_capture >= last_capture)
             diff = current_capture - last_capture;
         else
             diff = (0xFFFF - last_capture) + current_capture;
 
         last_capture = current_capture;
 
-        if(diff != 0)
-        {
-            frequency = 1000000.0 / diff;  // 1 tick = 1 us
-            rpm = (60.0 * frequency) / PPR;
-        }
+        // 🛡️ Ignore unrealistic captures caused by noise
+        if (diff < 5000 || diff > 80000)
+            return;
+
+        // 💡 Calculate frequency and RPM
+        frequency = 1000000.0 / diff;   // 1 tick = 1 µs
+        rpm = (60.0 * frequency) / PPR;
     }
 }
+
 
 /* USER CODE END 4 */
 
