@@ -81,7 +81,7 @@ uint32_t start = 0, end = 0;
 // float frequency = 0.0;
 char msg[50];
 /* USER CODE END PV */
-#define PPR 20   // Example: set to your encoder's Pulses Per Revolution
+#define PPR 330  // Example: set to your encoder's Pulses Per Revolution
 
 
 /* USER CODE END PV */
@@ -143,7 +143,7 @@ int main(void)
   //  HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);    // Start PWM on PC6                  \\task 2
 // HAL_TIM_Base_Start(&htim2);                 // Start TIM2 for input capture
 HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-// HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1); // TIM2 input capture with interrupt          // task 4
+HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1); // TIM2 input capture with interrupt          // task 4
 
 
 // Start timer for microsecond measurement
@@ -172,53 +172,55 @@ __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 600);
 uint32_t t1 = 0, t2 = 0;
 
 // --------------------------------task4-----------------------------
-// while(1)
-// {
-//     sprintf(msg, "RPM = %.2f\r\n", rpm);
-//     HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
-//     HAL_Delay(200);
-// }
+while (1)
+{
+    sprintf(msg, "Freq = %.2f Hz   RPM = %.2f\r\n", frequency, rpm);
+    HAL_UART_Transmit(&huart1, (uint8_t*)msg, strlen(msg), HAL_MAX_DELAY);
+    HAL_Delay(200);
+}
+
 //-----------------------------------------------------------------
 
-while (1)                 //task3
-{
-    // Read encoder pin (e.g., PD0)
-    current_state = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
+// while (1) // Task 3: Polling method
+// {
+//     // Read encoder pin (e.g., PA0)
+//     current_state = HAL_GPIO_ReadPin(GPIOA, GPIO_PIN_0);
 
-    // Detect falling edge (1 -> 0)
-    if (last_state == 1 && current_state == 0)
-    {
-        if (start == 0)
-        {
-            start = __HAL_TIM_GET_COUNTER(&htim2);
-        }
-        else
-        {
-            end = __HAL_TIM_GET_COUNTER(&htim2);
+//     // Detect falling edge (1 -> 0)
+//     if (last_state == 1 && current_state == 0)
+//     {
+//         if (start == 0)
+//         {
+//             start = __HAL_TIM_GET_COUNTER(&htim2);  // Start timing
+//         }
+//         else
+//         {
+//             end = __HAL_TIM_GET_COUNTER(&htim2);    // Stop timing
 
-            if (end >= start)
-                diff = end - start;
-            else
-                diff = (0xFFFF - start) + end;
+//             if (end >= start)
+//                 diff = end - start;
+//             else
+//                 diff = (0xFFFF - start) + end;
 
-            start = 0; // reset for next edge
+//             start = 0;  // Reset for next cycle
 
-            // Reject noise
-            if (diff < 5000 || diff > 80000)
-                continue;
+//             // Optional noise filter
+//             // if (diff < 5000 || diff > 80000)
+//             //     continue;
 
-            // Calculate frequency and RPM
-            frequency = 1000000.0 / diff;  // 1 tick = 1 µs
-            rpm = (60.0 * frequency) / PPR;
+//             // Calculate frequency and RPM
+//             frequency = 1000000.0 / diff;  // Since 1 tick = 1 µs (prescaler=47)
+//             rpm = (60.0 * frequency) / PPR;
 
-            sprintf(msg, "diff=%lu  RPM=%.2f\r\n", diff, rpm);
-            HAL_UART_Transmit(&huart1, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
-            HAL_Delay(200);
-        }
-    }
+//             sprintf(msg, "Freq=%.2f Hz  RPM=%.2f\r\n", frequency, rpm);
+//             HAL_UART_Transmit(&huart1, (uint8_t *)msg, strlen(msg), HAL_MAX_DELAY);
+//             HAL_Delay(200);
+//         }
+//     }
 
-    last_state = current_state;
-}
+//     last_state = current_state;
+// }
+
 
 
 
@@ -604,30 +606,30 @@ HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
 /* USER CODE BEGIN 4 */
 //  ----------------------------------task4---------------------------------
-// uint32_t last_capture = 0;
-// void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)                             
-// {
-//     if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
-//     {
-//         uint32_t current_capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
-//         uint32_t diff;
+uint32_t last_capture = 0;
+void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)                             
+{
+    if (htim->Instance == TIM2 && htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1)
+    {
+        uint32_t current_capture = HAL_TIM_ReadCapturedValue(htim, TIM_CHANNEL_1);
+        uint32_t diff;
 
-//         if (current_capture >= last_capture)
-//             diff = current_capture - last_capture;
-//         else
-//             diff = (0xFFFF - last_capture) + current_capture;
+        if (current_capture >= last_capture)
+            diff = current_capture - last_capture;
+        else
+            diff = (0xFFFF - last_capture) + current_capture;
 
-//         last_capture = current_capture;
+        last_capture = current_capture;
 
-//         // 🛡️ Ignore unrealistic captures caused by noise
-//         if (diff < 5000 || diff > 80000)
-//             return;
+        // 🛡️ Ignore unrealistic captures caused by noise
+        // if (diff < 5000 || diff > 80000)
+        //     return;
 
-//         // 💡 Calculate frequency and RPM
-//         frequency = 1000000.0 / diff;   // 1 tick = 1 µs
-//         rpm = (60.0 * frequency) / PPR;
-//     }
-// }
+        // 💡 Calculate frequency and RPM
+        frequency = 1000000.0 / diff;   // 1 tick = 1 µs
+        rpm = (60.0 * frequency) / PPR;
+    }
+}
 //-------------------------------------------------------------------------
 
 /* USER CODE END 4 */
