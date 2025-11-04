@@ -21,7 +21,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-
+#include "heap_driver.h"
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
 
@@ -118,58 +118,91 @@ int main(void)
 
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
-  printf("=== Task 1: Dynamic Memory Allocation ===\r\n\r\n");
-  const int n = 10;
+  // printf("=== Task 1: Dynamic Memory Allocation ===\r\n\r\n");
+  // const int n = 10;
 
-  /* Step (b): Allocate using malloc() */
-  int *arr_malloc = (int *)malloc(n * sizeof(int));
-  if (arr_malloc == NULL)
+  // /* Step (b): Allocate using malloc() */
+  // int *arr_malloc = (int *)malloc(n * sizeof(int));
+  // if (arr_malloc == NULL)
+  // {
+  //   printf("malloc failed!\r\n");
+  //   while (1);
+  // }
+
+  // for (int i = 0; i < n; i++)
+  //   arr_malloc[i] = i * 2;
+
+  // /* Step (c): Allocate using calloc() */
+  // int *arr_calloc = (int *)calloc(n, sizeof(int));
+  // if (arr_calloc == NULL)
+  // {
+  //   printf("calloc failed!\r\n");
+  //   free(arr_malloc);
+  //   while (1);
+  // }
+
+  // /* Verify calloc() initializes zeros */
+  // printf("calloc initial values: ");
+  // for (int i = 0; i < n; i++)
+  //   printf("%d ", arr_calloc[i]);
+  // printf("\r\n");
+
+  // /* Now assign values to calloc array */
+  // for (int i = 0; i < n; i++)
+  //   arr_calloc[i] = i + 1;
+
+  // /* Step (d): Print both arrays */
+  // printf("\r\nmalloc array values: ");
+  // for (int i = 0; i < n; i++)
+  //   printf("%d ", arr_malloc[i]);
+  // printf("\r\n");
+                                                 //TASK1
+  // printf("calloc array values: ");
+  // for (int i = 0; i < n; i++)
+  //   printf("%d ", arr_calloc[i]);
+  // printf("\r\n");
+
+  // /* Step (e–g): Free and clear pointers */
+  // free(arr_malloc);
+  // free(arr_calloc);
+  // arr_malloc = NULL;
+  // arr_calloc = NULL;
+
+  // printf("\r\nMemory successfully freed and pointers cleared.\r\n");
+  printf("=== Task 2: Custom Heap Driver (Direct SRAM) ===\r\n");
+
+  // Step 1: Initialize custom heap
+  heap_init();
+  printf("Heap initialized.\r\n");
+
+  // Step 2: Allocate two memory blocks from custom heap
+  char *block1 = (char *)heap_alloc(32); // allocate 32 bytes
+  char *block2 = (char *)heap_alloc(64); // allocate 64 bytes
+
+  if (block1 == NULL || block2 == NULL)
   {
-    printf("malloc failed!\r\n");
+    printf("Heap allocation failed!\r\n");
     while (1);
   }
 
-  for (int i = 0; i < n; i++)
-    arr_malloc[i] = i * 2;
+  // Step 3: Write some test data
+  strcpy(block1, "Data in Block 1");
+  strcpy(block2, "Text from Block 2");
 
-  /* Step (c): Allocate using calloc() */
-  int *arr_calloc = (int *)calloc(n, sizeof(int));
-  if (arr_calloc == NULL)
+  // Step 4: Display contents via UART
+  printf("Block1: %s\r\n", block1);
+  printf("Block2: %s\r\n", block2);
+
+  // Step 5: Free the blocks
+  heap_free(block1);
+  heap_free(block2);
+  printf("Blocks freed.\r\n");
+
+ 
+  while (1)
   {
-    printf("calloc failed!\r\n");
-    free(arr_malloc);
-    while (1);
+    HAL_Delay(1000);
   }
-
-  /* Verify calloc() initializes zeros */
-  printf("calloc initial values: ");
-  for (int i = 0; i < n; i++)
-    printf("%d ", arr_calloc[i]);
-  printf("\r\n");
-
-  /* Now assign values to calloc array */
-  for (int i = 0; i < n; i++)
-    arr_calloc[i] = i + 1;
-
-  /* Step (d): Print both arrays */
-  printf("\r\nmalloc array values: ");
-  for (int i = 0; i < n; i++)
-    printf("%d ", arr_malloc[i]);
-  printf("\r\n");
-
-  printf("calloc array values: ");
-  for (int i = 0; i < n; i++)
-    printf("%d ", arr_calloc[i]);
-  printf("\r\n");
-
-  /* Step (e–g): Free and clear pointers */
-  free(arr_malloc);
-  free(arr_calloc);
-  arr_malloc = NULL;
-  arr_calloc = NULL;
-
-  printf("\r\nMemory successfully freed and pointers cleared.\r\n");
-
   while (1)
   {
     HAL_Delay(1000);
