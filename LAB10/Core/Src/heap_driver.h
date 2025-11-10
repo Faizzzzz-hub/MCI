@@ -47,4 +47,6 @@ void* heap_alloc(size_t size);
 * - If an invalid or already-freed pointer is passed, behavior is undefined.
 */
 void heap_free(void* ptr);
+void heap_print_map(const char* label);
+
 #endif // End of include guard

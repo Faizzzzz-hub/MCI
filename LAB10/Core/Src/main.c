@@ -169,44 +169,90 @@ int main(void)
   // arr_calloc = NULL;
 
   // printf("\r\nMemory successfully freed and pointers cleared.\r\n");
-  printf("=== Task 2: Custom Heap Driver (Direct SRAM) ===\r\n");
+  // printf("=== Task 2: Custom Heap Driver (Direct SRAM) ===\r\n");
 
-  // Step 1: Initialize custom heap
-  heap_init();
-  printf("Heap initialized.\r\n");
+  // // Step 1: Initialize custom heap
+  // heap_init();
+  // printf("Heap initialized.\r\n");
 
-  // Step 2: Allocate two memory blocks from custom heap
-  char *block1 = (char *)heap_alloc(32); // allocate 32 bytes
-  char *block2 = (char *)heap_alloc(64); // allocate 64 bytes
+  
 
-  if (block1 == NULL || block2 == NULL)
-  {
-    printf("Heap allocation failed!\r\n");
-    while (1);
-  }
+  // // Step 2: Allocate two memory blocks from custom heap
+  // char *block1 = (char *)heap_alloc(32); // allocate 32 bytes
+  // char *block2 = (char *)heap_alloc(64); // allocate 64 bytes
 
-  // Step 3: Write some test data
-  strcpy(block1, "Data in Block 1");
-  strcpy(block2, "Text from Block 2");
+  // if (block1 == NULL || block2 == NULL)
+  // {
+  //   printf("Heap allocation failed!\r\n");
+  //   while (1);
+  // }
 
-  // Step 4: Display contents via UART
-  printf("Block1: %s\r\n", block1);
-  printf("Block2: %s\r\n", block2);
+  // // Step 3: Write some test data
+  // strcpy(block1, "Data in Block 1");
+  // strcpy(block2, "Text from Block 2");
 
-  // Step 5: Free the blocks
-  heap_free(block1);
-  heap_free(block2);
-  printf("Blocks freed.\r\n");
+  // // Step 4: Display contents via UART
+  // printf("Block1: %s\r\n", block1);
+  // printf("Block2: %s\r\n", block2);
+
+  // // Step 5: Free the blocks
+  // heap_free(block1);
+  // heap_free(block2);
+  // printf("Blocks freed.\r\n");
 
  
-  while (1)
-  {
-    HAL_Delay(1000);
-  }
-  while (1)
-  {
-    HAL_Delay(1000);
-  }
+  // while (1)
+  // {
+  //   HAL_Delay(1000);
+  // }
+  // while (1)
+  // {
+  //   HAL_Delay(1000);
+  // }
+  printf("=== Task 2: Custom Heap Driver (Direct SRAM) ===\r\n");
+
+// Step 1: Initialize custom heap
+heap_init();
+printf("Heap initialized.\r\n");
+
+// print heap before allocation
+heap_print_map("Before allocation");
+
+// Step 2: Allocate two memory blocks from custom heap
+char *block1 = (char *)heap_alloc(32); // allocate 32 bytes
+char *block2 = (char *)heap_alloc(64); // allocate 64 bytes
+
+if (block1 == NULL || block2 == NULL)
+{
+  printf("Heap allocation failed!\r\n");
+  while (1);
+}
+
+// print heap after allocation
+heap_print_map("After allocation");
+
+// Step 3: Write some test data
+strcpy(block1, "Data in Block 1");
+strcpy(block2, "Text from Block 2");
+
+// Step 4: Display contents via UART
+printf("Block1: %s\r\n", block1);
+printf("Block2: %s\r\n", block2);
+
+// Step 5: Free the blocks
+heap_free(block1);
+heap_free(block2);
+printf("Blocks freed.\r\n");
+
+// print heap after free
+heap_print_map("After free");
+
+// single infinite loop
+while (1)
+{
+  HAL_Delay(1000);
+}
+
   /* USER CODE END 3 */
 }
 
