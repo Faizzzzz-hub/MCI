@@ -169,6 +169,15 @@ int main(void)
   // arr_calloc = NULL;
 
   // printf("\r\nMemory successfully freed and pointers cleared.\r\n");
+
+
+
+
+  //                          TASK2 
+
+
+
+
   // printf("=== Task 2: Custom Heap Driver (Direct SRAM) ===\r\n");
 
   // // Step 1: Initialize custom heap
@@ -209,6 +218,14 @@ int main(void)
   // {
   //   HAL_Delay(1000);
   // }
+
+
+  //TASK2 for printing heap
+
+
+
+
+  
   printf("=== Task 2: Custom Heap Driver (Direct SRAM) ===\r\n");
 
 // Step 1: Initialize custom heap
