@@ -72,6 +72,19 @@ PCD_HandleTypeDef hpcd_USB_FS;
 #define GYRO_CS_LOW()   HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin, GPIO_PIN_RESET)
 #define GYRO_CS_HIGH()  HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin, GPIO_PIN_SET)
 
+#define GYRO_CS_LOW()    HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin, GPIO_PIN_RESET)
+#define GYRO_CS_HIGH()   HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin, GPIO_PIN_SET)
+
+#define GYRO_REG_CTRL1   0x20
+#define GYRO_REG_CTRL3   0x22
+#define GYRO_REG_CTRL4   0x23
+#define GYRO_REG_OUT_X_L 0x28
+#define GYRO_SPI_READ     0x80
+#define GYRO_SPI_AUTO_INC 0x40
+#define GYRO_SENS_245DPS 0.00875f
+
+
+
 
 /* simple accel structure */
 typedef struct { float ax, ay, az; } accel_t;
@@ -294,7 +307,7 @@ static void MX_SPI1_Init(void)
   hspi1.Instance = SPI1;
   hspi1.Init.Mode = SPI_MODE_MASTER;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_4BIT;
+hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
   hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
   hspi1.Init.NSS = SPI_NSS_SOFT;
@@ -589,39 +602,80 @@ HAL_StatusTypeDef LSM_Accel_Read(accel_t *m)
 
  void gyro_init_basic(void)
 {
-    // power on and enable X/Y/Z, ODR to some default (commonly 95/100Hz or 380Hz depends on device)
-    // Use WHO_AM_I first to check device
     uint8_t who = gyro_read_u8(GYRO_REG_WHOAMI);
-    // you can check 'who' value via UART (printf) if you want
-    // set CTRL1 to reasonable default (here we use 0x0F: normal power, enable XYZ)
-    gyro_write_u8(GYRO_REG_CTRL1, 0x8F);
-    // set CTRL4 for ±250 dps (or change for other FS)
+    printf("WHOAMI = 0x%02X\r\n", who);
+
+    // CTRL1: ODR = 400Hz, BW=110, enable XYZ, power on
+    gyro_write_u8(GYRO_REG_CTRL1, 0x4F);
+
+    // CTRL4: ±245 dps
     gyro_write_u8(GYRO_REG_CTRL4, 0x00);
-    HAL_Delay(10);
+
+    HAL_Delay(20);
 }
+void gyro_read_xyz(int16_t *gx, int16_t *gy, int16_t *gz)
+{
+    uint8_t reg = GYRO_REG_OUT_X_L | GYRO_SPI_READ | GYRO_SPI_AUTO_INC;
+    uint8_t buf[6];
+
+    GYRO_CS_LOW();
+    HAL_SPI_Transmit(&hspi1, &reg, 1, 100);
+    HAL_SPI_Receive(&hspi1, buf, 6, 100);
+    GYRO_CS_HIGH();
+
+    *gx = (int16_t)(buf[1] << 8 | buf[0]);
+    *gy = (int16_t)(buf[3] << 8 | buf[2]);
+    *gz = (int16_t)(buf[5] << 8 | buf[4]);
+}
+
 /* USER CODE BEGIN 4 */
+// void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+// {
+//     if (htim->Instance == TIM2)
+//     {
+//         // toggle LED so you can probe the pin at 100Hz
+//         HAL_GPIO_TogglePin(GPIOE, LD6_Pin);
+
+//         // read accel at 100 Hz
+//         if (LSM_Accel_Read(&accel_data) == HAL_OK)
+//         {
+//             // compute tilt angle around X or Y axis. Example: pitch ≈ atan2(ax, az)
+//             float angle_rad = atan2f(accel_data.ax, accel_data.az); // change axes as needed
+//             float angle_deg = angle_rad * 180.0f / (float)M_PI;
+
+//             // send via UART (quick print)
+//             char buf[64];
+//             int n = snprintf(buf, sizeof(buf), "ax=%.3fg ay=%.3fg az=%.3fg angle=%.2f\r\n",
+//                              accel_data.ax, accel_data.ay, accel_data.az, angle_deg);
+//             HAL_UART_Transmit(&huart1, (uint8_t*)buf, n, HAL_MAX_DELAY);
+//         }
+//     }
+// }
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if (htim->Instance == TIM2)
+    if(htim->Instance == TIM2)
     {
-        // toggle LED so you can probe the pin at 100Hz
-        HAL_GPIO_TogglePin(GPIOE, LD6_Pin);
-
-        // read accel at 100 Hz
-        if (LSM_Accel_Read(&accel_data) == HAL_OK)
+        counter++;
+        if(counter >= 10)  // 10Hz
         {
-            // compute tilt angle around X or Y axis. Example: pitch ≈ atan2(ax, az)
-            float angle_rad = atan2f(accel_data.ax, accel_data.az); // change axes as needed
-            float angle_deg = angle_rad * 180.0f / (float)M_PI;
+            counter = 0;
 
-            // send via UART (quick print)
+            int16_t gx_raw, gy_raw, gz_raw;
+            gyro_read_xyz(&gx_raw, &gy_raw, &gz_raw);
+
+            float gx = gx_raw * GYRO_SENS_245DPS;
+            float gy = gy_raw * GYRO_SENS_245DPS;
+            float gz = gz_raw * GYRO_SENS_245DPS;
+
             char buf[64];
-            int n = snprintf(buf, sizeof(buf), "ax=%.3fg ay=%.3fg az=%.3fg angle=%.2f\r\n",
-                             accel_data.ax, accel_data.ay, accel_data.az, angle_deg);
+            int n = snprintf(buf, sizeof(buf),
+                             "Gx=%.2f dps  Gy=%.2f dps  Gz=%.2f dps\r\n",
+                             gx, gy, gz);
             HAL_UART_Transmit(&huart1, (uint8_t*)buf, n, HAL_MAX_DELAY);
         }
     }
 }
+
 int _write(int file, char *data, int len) {
     HAL_UART_Transmit(&huart1, (uint8_t*)data, len, HAL_MAX_DELAY);
     return len;
