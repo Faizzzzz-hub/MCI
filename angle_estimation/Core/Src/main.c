@@ -18,6 +18,10 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include <math.h>   // for atan2f
+#include <string.h> // for memset
+#include <stdio.h>
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -51,6 +55,28 @@ UART_HandleTypeDef huart1;
 PCD_HandleTypeDef hpcd_USB_FS;
 
 /* USER CODE BEGIN PV */
+#define LSM_A_ADDR_W   (0x32)   // write address (8-bit as per your note)
+#define LSM_A_ADDR_R   (0x33)   // read address (8-bit)
+#define LSM_A_CTRL1    0x20
+#define LSM_A_CTRL4    0x23
+#define LSM_A_OUT_X_L  0x28
+#define LSM_A_AUTO_INC 0x80
+#define LSM_A_G_PER_LSB 0.0039f  // 3.9 mg/LSB
+
+#define GYRO_REG_WHOAMI   0x0F
+#define GYRO_REG_CTRL1    0x20
+#define GYRO_REG_CTRL4    0x23
+#define GYRO_REG_OUT_X_L  0x28
+#define GYRO_SPI_READ     0x80
+#define GYRO_SPI_AUTO_INC 0x40
+#define GYRO_CS_LOW()   HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin, GPIO_PIN_RESET)
+#define GYRO_CS_HIGH()  HAL_GPIO_WritePin(GPIOE, CS_I2C_SPI_Pin, GPIO_PIN_SET)
+
+
+/* simple accel structure */
+typedef struct { float ax, ay, az; } accel_t;
+
+accel_t accel_data;
 /* USER CODE BEGIN PV */
 volatile uint8_t uart_flag = 0;   // Flag set by timer ISR
 volatile uint8_t counter = 0;     // Counts timer interrupts
@@ -67,6 +93,15 @@ static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_USB_PCD_Init(void);
 /* USER CODE BEGIN PFP */
+HAL_StatusTypeDef LSM_Accel_Init(void);
+HAL_StatusTypeDef LSM_Accel_Read(accel_t *m);
+
+
+// gyro prototypes
+uint8_t gyro_read_u8(uint8_t reg);
+void gyro_write_u8(uint8_t reg, uint8_t val);
+void gyro_init_basic(void);
+
 
 /* USER CODE END PFP */
 
@@ -112,6 +147,19 @@ int main(void)
   /* USER CODE BEGIN 2 */
   HAL_TIM_Base_Start_IT(&htim2);   // Start Timer2 with interrupt
 
+  /* USER CODE BEGIN 2 */
+if (HAL_I2C_IsDeviceReady(&hi2c1, LSM_A_ADDR_W, 3, 50) == HAL_OK) {
+    LSM_Accel_Init();
+    printf("Accel initialized\r\n");
+} else {
+    printf("Accel not present (I2C)\r\n");
+}
+
+gyro_init_basic();
+printf("Gyro basic init done (WHOAMI=0x%02X)\r\n", gyro_read_u8(GYRO_REG_WHOAMI));
+
+HAL_TIM_Base_Start_IT(&htim2);   // Start TIM2 interrupt at 100Hz
+/* USER CODE END 2 */
 
   /* USER CODE END 2 */
 
@@ -450,18 +498,136 @@ static void MX_GPIO_Init(void)
 //         HAL_GPIO_TogglePin(GPIOE, LD6_Pin);  // toggles every 1/100 sec
 //     }
 // }
+// void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+// {
+//     if(htim->Instance == TIM2)
+//     {
+//         counter++;               // increment counter each ISR
+//         if(counter >= 10)        // for 10 Hz if timer is 100 Hz
+//         {
+//             uart_flag = 1;       // set flag for main loop
+//             counter = 0;         // reset counter
+//         }
+//     }
+// }
+/* USER CODE BEGIN 4 */
+/* I2C helpers already available via HAL, so use HAL_I2C_Mem_Write/Read */
+
+/* Initialize LSM303AGR accelerometer:
+ * CTRL1_A = 0x67 (ODR 200 Hz + all axes on -> per your note)
+ * CTRL4_A = 0x00 (±2g normal mode)
+ */
+HAL_StatusTypeDef LSM_Accel_Init(void)
+{
+    uint8_t v;
+    HAL_StatusTypeDef st;
+
+    v = 0x67; // CTRL1_A: 0x67 => ODR=200Hz, all axes on, normal mode
+    st = HAL_I2C_Mem_Write(&hi2c1, LSM_A_ADDR_W, LSM_A_CTRL1, I2C_MEMADD_SIZE_8BIT, &v, 1, 100);
+    if (st != HAL_OK) return st;
+
+    v = 0x00; // CTRL4_A: ±2g normal mode, continuous update
+    st = HAL_I2C_Mem_Write(&hi2c1, LSM_A_ADDR_W, LSM_A_CTRL4, I2C_MEMADD_SIZE_8BIT, &v, 1, 100);
+    if (st != HAL_OK) return st;
+
+    HAL_Delay(10);
+    return HAL_OK;
+}
+
+/* Read accelerometer, convert to g.
+ * Note: device returns left-justified 16-bit values for normal mode (10-bit useful data)
+ * we right-shift by 6 to get 10-bit values, then multiply by 0.0039 g/LSB.
+ */
+HAL_StatusTypeDef LSM_Accel_Read(accel_t *m)
+{
+    uint8_t buf[6];
+    HAL_StatusTypeDef st;
+
+    st = HAL_I2C_Mem_Read(&hi2c1, LSM_A_ADDR_R, (LSM_A_OUT_X_L | LSM_A_AUTO_INC),
+                          I2C_MEMADD_SIZE_8BIT, buf, 6, 100);
+    if (st != HAL_OK) return st;
+
+    int16_t rx = (int16_t)((buf[1] << 8) | buf[0]); // note order: low then high
+    int16_t ry = (int16_t)((buf[3] << 8) | buf[2]);
+    int16_t rz = (int16_t)((buf[5] << 8) | buf[4]);
+
+    // right shift by 6 to convert 16-bit left-justified to 10-bit value
+    rx = rx >> 6;
+    ry = ry >> 6;
+    rz = rz >> 6;
+
+    m->ax = ((float)rx) * LSM_A_G_PER_LSB;
+    m->ay = ((float)ry) * LSM_A_G_PER_LSB;
+    m->az = ((float)rz) * LSM_A_G_PER_LSB;
+
+    return HAL_OK;
+}
+/* SPI gyro helpers for L3GD20 / I3G4250D style devices */
+/* change these registers if your gyro uses different addresses */
+
+// extern void GYRO_CS_LOW(void);  // if you have these macros (from earlier code)
+// extern void GYRO_CS_HIGH(void);
+
+ uint8_t gyro_read_u8(uint8_t reg)
+{
+    uint8_t header = (reg & 0x3F) | GYRO_SPI_READ;
+    uint8_t v = 0;
+    GYRO_CS_LOW();
+    HAL_SPI_Transmit(&hspi1, &header, 1, 100);
+    HAL_SPI_Receive(&hspi1, &v, 1, 100);
+    GYRO_CS_HIGH();
+    return v;
+}
+
+ void gyro_write_u8(uint8_t reg, uint8_t val)
+{
+    uint8_t tx[2] = { reg & 0x3F, val };
+    GYRO_CS_LOW();
+    HAL_SPI_Transmit(&hspi1, tx, 2, 100);
+    GYRO_CS_HIGH();
+}
+
+ void gyro_init_basic(void)
+{
+    // power on and enable X/Y/Z, ODR to some default (commonly 95/100Hz or 380Hz depends on device)
+    // Use WHO_AM_I first to check device
+    uint8_t who = gyro_read_u8(GYRO_REG_WHOAMI);
+    // you can check 'who' value via UART (printf) if you want
+    // set CTRL1 to reasonable default (here we use 0x0F: normal power, enable XYZ)
+    gyro_write_u8(GYRO_REG_CTRL1, 0x8F);
+    // set CTRL4 for ±250 dps (or change for other FS)
+    gyro_write_u8(GYRO_REG_CTRL4, 0x00);
+    HAL_Delay(10);
+}
+/* USER CODE BEGIN 4 */
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
-    if(htim->Instance == TIM2)
+    if (htim->Instance == TIM2)
     {
-        counter++;               // increment counter each ISR
-        if(counter >= 10)        // for 10 Hz if timer is 100 Hz
+        // toggle LED so you can probe the pin at 100Hz
+        HAL_GPIO_TogglePin(GPIOE, LD6_Pin);
+
+        // read accel at 100 Hz
+        if (LSM_Accel_Read(&accel_data) == HAL_OK)
         {
-            uart_flag = 1;       // set flag for main loop
-            counter = 0;         // reset counter
+            // compute tilt angle around X or Y axis. Example: pitch ≈ atan2(ax, az)
+            float angle_rad = atan2f(accel_data.ax, accel_data.az); // change axes as needed
+            float angle_deg = angle_rad * 180.0f / (float)M_PI;
+
+            // send via UART (quick print)
+            char buf[64];
+            int n = snprintf(buf, sizeof(buf), "ax=%.3fg ay=%.3fg az=%.3fg angle=%.2f\r\n",
+                             accel_data.ax, accel_data.ay, accel_data.az, angle_deg);
+            HAL_UART_Transmit(&huart1, (uint8_t*)buf, n, HAL_MAX_DELAY);
         }
     }
 }
+int _write(int file, char *data, int len) {
+    HAL_UART_Transmit(&huart1, (uint8_t*)data, len, HAL_MAX_DELAY);
+    return len;
+}
+
+
 
 
 /* USER CODE END 4 */
