@@ -66,5 +66,11 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
 
     # Add user defined libraries
 )
+# Enable float support in printf
 target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -u_printf_float)
-    # Add user defined linker options
+
+# Link math library (for fabsf, sinf, atan2f, sqrtf, etc.)
+target_link_libraries(${CMAKE_PROJECT_NAME}
+    stm32cubemx
+    m
+)
