@@ -103,7 +103,7 @@ float Kd = 1.2f;
 float pid_integral = 0.0f;
 float last_error = 0.0f;
 
-float setpoint = 0.0f;   // robot upright position
+float setpoint = 0.5f;   // robot upright position
 // Motor pins (your wiring)
 #define MOTOR_IN1_GPIO_PORT   GPIOA   // D8 -> PA9
 #define MOTOR_IN1_PIN         GPIO_PIN_9
@@ -165,6 +165,8 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
+  setpoint = angle_filtered;   // set current angle as zero
+
 
   /* USER CODE END 1 */
 
@@ -788,67 +790,81 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
     {
         static uint8_t print_div = 0;   // for 10 Hz printing
 
-        // Toggle LED to see 100 Hz ISR activity on scope
-        HAL_GPIO_TogglePin(GPIOE, LD6_Pin);
+        HAL_GPIO_TogglePin(GPIOE, LD6_Pin);   // 100 Hz LED toggle
 
-        // 1) Read accelerometer (in g)
+        // ------------------ 1) ACCEL ------------------
         if (LSM_Accel_Read(&accel_data) == HAL_OK)
         {
-            // choose axes so that angle is tilt in your balancing direction
-accel_angle = atan2f(accel_data.ax, accel_data.az) * 180.0f / M_PI;        }
+            // YOU SAID BOTH ARE Y-AXIS BASED, so use ay
+            accel_angle = atan2f(accel_data.ay, accel_data.az) * 180.0f / M_PI;
+        }
 
-        // 2) Read gyro (deg/s). Use gy as tilt rate (you can swap if needed)
+        // ------------------ 2) GYRO ------------------
         int16_t gx_raw, gy_raw, gz_raw;
         gyro_read_xyz(&gx_raw, &gy_raw, &gz_raw);
-        float gy = gy_raw * GYRO_SENS_245DPS;
-        // gyro_rate = gy;   // deg/s
-gyro_rate = gy_raw * GYRO_SENS_245DPS;
 
-        // 3) Complementary filter (angle estimate)
-        angle_filtered = ALPHA * (angle_filtered + gyro_rate * DT)
-                       + (1.0f - ALPHA) * accel_angle;
+        gyro_rate = gy_raw * GYRO_SENS_245DPS;   // you said Y axis
 
-        // 4) PID (position control on angle)
-        float error = setpoint - angle_filtered;
 
-        // integral with simple anti-windup
-        pid_integral += error * DT;
-        if (pid_integral > 100.0f)  pid_integral = 100.0f;
-        if (pid_integral < -100.0f) pid_integral = -100.0f;
+        // ------------------ 3) COMPLEMENTARY FILTER ------------------
+        angle_filtered =
+            ALPHA * (angle_filtered + gyro_rate * DT)
+          + (1.0f - ALPHA) * accel_angle;
 
-        float derivative = (error - last_error) / DT;
-        float u = Kp * error + Ki * pid_integral + Kd * derivative;
-        last_error = error;
 
-        // 5) Map PID output to motor direction
-        float deadband = 1.0f;   // degrees
+        // ------------------ 4) ANGLE ERROR ------------------
+        // your upright is around 0.5° — so we set that as target
+        float upright = -1.0f;   // measured when stable
+float error = upright - angle_filtered;
 
-        if (fabsf(u) < deadband)
+        // angle deadband for STOP condition
+        float deadband_angle = 1.5f;
+
+        // if angle is between 0° and 1° → STOP + reset PID
+        if (fabsf(error) < deadband_angle)
         {
             motor_stop();
+            pid_integral = 0.0f;
+            last_error = 0.0f;
         }
-        else if (u > 0.0f)
+        else
         {
-            motor_forward();
-        }
-        else  // u < 0
-        {
-            motor_backward();
+            // clamp angle error to ±8 degrees (your request)
+            float max_angle_error = 8.0f;
+            if (error >  max_angle_error) error =  max_angle_error;
+            if (error < -max_angle_error) error = -max_angle_error;
+
+            // ---- PID ----
+            pid_integral += error * DT;
+            if (pid_integral > 100)  pid_integral = 100;
+            if (pid_integral < -100) pid_integral = -100;
+
+            float derivative = (error - last_error) / DT;
+            float u = Kp*error + Ki*pid_integral + Kd*derivative;
+            last_error = error;
+
+            // ------------------ 5) MOTOR DIR ------------------
+            if (u > 0)
+                motor_forward();
+            else
+                motor_backward();
         }
 
-        // 6) Print debug at 10 Hz (not every 100 Hz)
+
+        // ------------------ 6) PRINT at 10 Hz ------------------
         print_div++;
         if (print_div >= 10)
         {
             print_div = 0;
             char buf[96];
             int n = snprintf(buf, sizeof(buf),
-                             "ang_f=%.2f  acc=%.2f  gyro=%.2f  u=%.2f\r\n",
-                             angle_filtered, accel_angle, gyro_rate, u);
+                "angF=%.2f  acc=%.2f  gyro=%.2f  err=%.2f\r\n",
+                angle_filtered, accel_angle, gyro_rate, error);
             HAL_UART_Transmit(&huart1, (uint8_t*)buf, n, HAL_MAX_DELAY);
         }
     }
 }
+
 
 
 int _write(int file, char *data, int len) {
