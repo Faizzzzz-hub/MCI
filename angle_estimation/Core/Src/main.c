@@ -115,7 +115,12 @@ float setpoint = 0.5f;   // robot upright position
 #define MOTOR_EN_PIN          GPIO_PIN_6
 
 
-
+#define MOTOR2_IN1_GPIO_PORT  GPIOB   // D7 -> PB4
+#define MOTOR2_IN1_PIN        GPIO_PIN_4
+#define MOTOR2_IN2_GPIO_PORT  GPIOB   // D6 -> PB5
+#define MOTOR2_IN2_PIN        GPIO_PIN_5
+#define MOTOR2_EN_GPIO_PORT   GPIOC   // D9 -> PC7 (TIM3_CH2)
+#define MOTOR2_EN_PIN         GPIO_PIN_7
 
 
 /* simple accel structure */
@@ -195,9 +200,12 @@ int main(void)
   MX_USB_PCD_Init();
   MX_TIM3_Init();
   /* USER CODE BEGIN 2 */
-  HAL_TIM_Base_Start_IT(&htim2);   // Start Timer2 with interrupt
-  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);
-__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 600);  // speed ~60%
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_1);   // Motor 1 EN (PC6)
+  HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);   // Motor 2 EN (PC7)
+
+  // Fixed ~60% duty for both motors
+  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 600);
+  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 600);
 
 
   /* USER CODE BEGIN 2 */
@@ -450,6 +458,10 @@ static void MX_TIM3_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_PWM_ConfigChannel(&htim3, &sConfigOC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM3_Init 2 */
 
   /* USER CODE END TIM3_Init 2 */
@@ -550,6 +562,9 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(GPIOA, GPIO_PIN_9|GPIO_PIN_10, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(GPIOB, GPIO_PIN_4|GPIO_PIN_5, GPIO_PIN_RESET);
+
   /*Configure GPIO pins : DRDY_Pin MEMS_INT3_Pin MEMS_INT4_Pin MEMS_INT1_Pin
                            MEMS_INT2_Pin */
   GPIO_InitStruct.Pin = DRDY_Pin|MEMS_INT3_Pin|MEMS_INT4_Pin|MEMS_INT1_Pin
@@ -581,6 +596,13 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PB4 PB5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -713,26 +735,41 @@ void gyro_read_xyz(int16_t *gx, int16_t *gy, int16_t *gz)
 }
 void motor_forward(void)
 {
-    // D8 HIGH, D12 LOW, EN HIGH
+    // MOTOR 1: D8 HIGH, D12 LOW, EN HIGH
     HAL_GPIO_WritePin(MOTOR_IN1_GPIO_PORT, MOTOR_IN1_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(MOTOR_IN2_GPIO_PORT, MOTOR_IN2_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(MOTOR_EN_GPIO_PORT, MOTOR_EN_PIN, GPIO_PIN_SET);
+
+    // MOTOR 2: D7 HIGH, D6 LOW, EN HIGH
+    HAL_GPIO_WritePin(MOTOR2_IN1_GPIO_PORT, MOTOR2_IN1_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(MOTOR2_IN2_GPIO_PORT, MOTOR2_IN2_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR2_EN_GPIO_PORT, MOTOR2_EN_PIN, GPIO_PIN_SET);
 }
 
 void motor_backward(void)
 {
-    // D8 LOW, D12 HIGH, EN HIGH
+    // MOTOR 1: D8 LOW, D12 HIGH, EN HIGH
     HAL_GPIO_WritePin(MOTOR_IN1_GPIO_PORT, MOTOR_IN1_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(MOTOR_IN2_GPIO_PORT, MOTOR_IN2_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(MOTOR_EN_GPIO_PORT, MOTOR_EN_PIN, GPIO_PIN_SET);
+
+    // MOTOR 2: D7 LOW, D6 HIGH, EN HIGH
+    HAL_GPIO_WritePin(MOTOR2_IN1_GPIO_PORT, MOTOR2_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR2_IN2_GPIO_PORT, MOTOR2_IN2_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(MOTOR2_EN_GPIO_PORT, MOTOR2_EN_PIN, GPIO_PIN_SET);
 }
 
 void motor_stop(void)
 {
-    // both direction pins LOW, EN LOW
+    // MOTOR 1 off
     HAL_GPIO_WritePin(MOTOR_IN1_GPIO_PORT, MOTOR_IN1_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(MOTOR_IN2_GPIO_PORT, MOTOR_IN2_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(MOTOR_EN_GPIO_PORT, MOTOR_EN_PIN, GPIO_PIN_RESET);
+
+    // MOTOR 2 off
+    HAL_GPIO_WritePin(MOTOR2_IN1_GPIO_PORT, MOTOR2_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR2_IN2_GPIO_PORT, MOTOR2_IN2_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR2_EN_GPIO_PORT, MOTOR2_EN_PIN, GPIO_PIN_RESET);
 }
 
 
