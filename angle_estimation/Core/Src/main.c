@@ -170,7 +170,7 @@ int main(void)
 {
 
   /* USER CODE BEGIN 1 */
-  setpoint = angle_filtered;   // set current angle as zero
+  // setpoint = angle_filtered;   // set current angle as zero
 
 
   /* USER CODE END 1 */
@@ -204,8 +204,8 @@ int main(void)
   HAL_TIM_PWM_Start(&htim3, TIM_CHANNEL_2);   // Motor 2 EN (PC7)
 
   // Fixed ~60% duty for both motors
-  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 600);
-  __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 600);
+  // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, 600);
+  // __HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, 600);
 
 
   /* USER CODE BEGIN 2 */
@@ -738,12 +738,12 @@ void motor_forward(void)
     // MOTOR 1: D8 HIGH, D12 LOW, EN HIGH
     HAL_GPIO_WritePin(MOTOR_IN1_GPIO_PORT, MOTOR_IN1_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(MOTOR_IN2_GPIO_PORT, MOTOR_IN2_PIN, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(MOTOR_EN_GPIO_PORT, MOTOR_EN_PIN, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(MOTOR_EN_GPIO_PORT, MOTOR_EN_PIN, GPIO_PIN_SET);
 
     // MOTOR 2: D7 HIGH, D6 LOW, EN HIGH
     HAL_GPIO_WritePin(MOTOR2_IN1_GPIO_PORT, MOTOR2_IN1_PIN, GPIO_PIN_SET);
     HAL_GPIO_WritePin(MOTOR2_IN2_GPIO_PORT, MOTOR2_IN2_PIN, GPIO_PIN_RESET);
-    HAL_GPIO_WritePin(MOTOR2_EN_GPIO_PORT, MOTOR2_EN_PIN, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(MOTOR2_EN_GPIO_PORT, MOTOR2_EN_PIN, GPIO_PIN_SET);
 }
 
 void motor_backward(void)
@@ -751,12 +751,12 @@ void motor_backward(void)
     // MOTOR 1: D8 LOW, D12 HIGH, EN HIGH
     HAL_GPIO_WritePin(MOTOR_IN1_GPIO_PORT, MOTOR_IN1_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(MOTOR_IN2_GPIO_PORT, MOTOR_IN2_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(MOTOR_EN_GPIO_PORT, MOTOR_EN_PIN, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(MOTOR_EN_GPIO_PORT, MOTOR_EN_PIN, GPIO_PIN_SET);
 
     // MOTOR 2: D7 LOW, D6 HIGH, EN HIGH
     HAL_GPIO_WritePin(MOTOR2_IN1_GPIO_PORT, MOTOR2_IN1_PIN, GPIO_PIN_RESET);
     HAL_GPIO_WritePin(MOTOR2_IN2_GPIO_PORT, MOTOR2_IN2_PIN, GPIO_PIN_SET);
-    HAL_GPIO_WritePin(MOTOR2_EN_GPIO_PORT, MOTOR2_EN_PIN, GPIO_PIN_SET);
+    // HAL_GPIO_WritePin(MOTOR2_EN_GPIO_PORT, MOTOR2_EN_PIN, GPIO_PIN_SET);
 }
 
 void motor_stop(void)
@@ -834,6 +834,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
         {
             // YOU SAID BOTH ARE Y-AXIS BASED, so use ay
             accel_angle = atan2f(accel_data.ay, accel_data.az) * 180.0f / M_PI;
+            static int first_init = 1;
+            if (first_init) {
+            angle_filtered = accel_angle;  // initialize filter with accel angle
+              first_init = 0;
+}
+
         }
 
         // ------------------ 2) GYRO ------------------
@@ -851,11 +857,12 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 
         // ------------------ 4) ANGLE ERROR ------------------
         // your upright is around 0.5° — so we set that as target
-        float upright = -1.0f;   // measured when stable
-float error = upright - angle_filtered;
+        float setpoint = -1.0f;   // you can adjust later
+float error = setpoint - angle_filtered;
+
 
         // angle deadband for STOP condition
-        float deadband_angle = 1.5f;
+        float deadband_angle = 0.5f;
 
         // if angle is between 0° and 1° → STOP + reset PID
         if (fabsf(error) < deadband_angle)
@@ -873,18 +880,43 @@ float error = upright - angle_filtered;
 
             // ---- PID ----
             pid_integral += error * DT;
-            if (pid_integral > 100)  pid_integral = 100;
-            if (pid_integral < -100) pid_integral = -100;
+            if (pid_integral > 20)  pid_integral = 20;
+if (pid_integral < -20) pid_integral = -20;
+
 
             float derivative = (error - last_error) / DT;
-            float u = Kp*error + Ki*pid_integral + Kd*derivative;
+            float u = (Kp*error + Ki*pid_integral + Kd*derivative) * 30.0f;
             last_error = error;
 
             // ------------------ 5) MOTOR DIR ------------------
-            if (u > 0)
-                motor_forward();
-            else
-                motor_backward();
+            float u_abs = fabsf(u);
+if (u_abs > 999) u_abs = 999;
+uint16_t pwm = (uint16_t)u_abs;
+
+// DIRECTION
+if (u > 0)
+{
+    // forward
+    HAL_GPIO_WritePin(MOTOR_IN1_GPIO_PORT, MOTOR_IN1_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(MOTOR_IN2_GPIO_PORT, MOTOR_IN2_PIN, GPIO_PIN_RESET);
+
+    HAL_GPIO_WritePin(MOTOR2_IN1_GPIO_PORT, MOTOR2_IN1_PIN, GPIO_PIN_SET);
+    HAL_GPIO_WritePin(MOTOR2_IN2_GPIO_PORT, MOTOR2_IN2_PIN, GPIO_PIN_RESET);
+}
+else
+{
+    // backward
+    HAL_GPIO_WritePin(MOTOR_IN1_GPIO_PORT, MOTOR_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR_IN2_GPIO_PORT, MOTOR_IN2_PIN, GPIO_PIN_SET);
+
+    HAL_GPIO_WritePin(MOTOR2_IN1_GPIO_PORT, MOTOR2_IN1_PIN, GPIO_PIN_RESET);
+    HAL_GPIO_WritePin(MOTOR2_IN2_GPIO_PORT, MOTOR2_IN2_PIN, GPIO_PIN_SET);
+}
+
+// SPEED (PWM)
+__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_1, pwm);
+__HAL_TIM_SET_COMPARE(&htim3, TIM_CHANNEL_2, pwm);
+
         }
 
 
